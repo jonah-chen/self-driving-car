@@ -12,7 +12,11 @@ from os import listdir
 from cityscapesscripts.helpers.csHelpers import getCoreImageFileName
 import numpy as np
 from PIL import Image
+import tensorflow as tf
 from tensorflow import one_hot
+from random import randint
+
+from time import perf_counter
 
 def get_dirs(path):
     paths = listdir(path)
@@ -77,16 +81,18 @@ def relabel(im, downscale):
 
 def generate_train(downscale=4, batch_size=2):
     for i in range(len(x_path)):
-        y_train = np.asarray(Image.open(y_path[i]))
-
         if downscale==1:
             x_train = np.asarray(Image.open(x_path[i]))/255
+            y_train = np.asarray(Image.open(y_path[i]))
+        elif randint(0, 1):
+            x_train = np.flip(np.asarray(Image.open(x_path[i]).resize((2048//downscale, 1024//downscale))),axis=1)/255
+            y_train = np.flip(np.asarray(Image.open(y_path[i]).resize((2048//downscale, 1024//downscale), resample=Image.NEAREST)), axis=1)
         else:
-            x_train = np.asarray(Image.open(x_path[i]).resize((1024//downscale, 2048//downscale)))/255
-            y_train = relabel(y_train, downscale)
-
+            x_train = np.asarray(Image.open(x_path[i]).resize((2048//downscale, 1024//downscale)))/255
+            y_train = np.asarray(Image.open(y_path[i]).resize((2048//downscale, 1024//downscale), resample=Image.NEAREST))
+            
         x_train = x_train.reshape(1, 1024//downscale, 2048//downscale, 3)
-        y_train = one_hot(y_train, 30).numpy().reshape(1, 1024//downscale, 2048//downscale, 30)
+        y_train = tf.reshape(one_hot(y_train, 30), (1, 1024//downscale, 2048//downscale, 30))
 
         if i == 0:
             x = x_train
@@ -104,16 +110,15 @@ def generate_train(downscale=4, batch_size=2):
 
 def generate_test(downscale=4, batch_size=2):
     for i in range(len(x_test_path)):
-        y_train = np.asarray(Image.open(y_test_path[i]))
-
         if downscale==1:
             x_train = np.asarray(Image.open(x_test_path[i]))/255
+            y_train = np.asarray(Image.open(y_test_path[i]))
         else:
-            x_train = np.asarray(Image.open(x_test_path[i]).resize((1024//downscale, 2048//downscale)))/255
-            y_train = relabel(y_train, downscale)
-
+            x_train = np.flip(np.asarray(Image.open(x_test_path[i]).resize((2048//downscale, 1024//downscale))),axis=1)/255
+            y_train = np.flip(np.asarray(Image.open(y_test_path[i]).resize((2048//downscale, 1024//downscale), resample=Image.NEAREST)), axis=1)
+            
         x_train = x_train.reshape(1, 1024//downscale, 2048//downscale, 3)
-        y_train = one_hot(y_train, 30).numpy().reshape(1, 1024//downscale, 2048//downscale, 30)
+        y_train = tf.reshape(one_hot(y_train, 30), (1, 1024//downscale, 2048//downscale, 30))
 
         if i == 0:
             x = x_train
@@ -139,4 +144,3 @@ if __name__ == '__main__':
     print(f"X_TRAIN has shape {x_train.shape}, X_TRAIN looks like {x_train}.")
     print(f"Y_TRAIN has shape {y_train.shape}, Y_TRAIN looks like {y_train}.\nThe maximum of Y_TRAIN is {np.max(y_train)}")
     print(next(te))
-
